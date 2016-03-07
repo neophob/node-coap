@@ -951,7 +951,7 @@ describe('server', function() {
 
 })
 
-describe('piggyback timing option', function() {
+describe('validate custom server options', function() {
 
   var server
   var port
@@ -974,6 +974,12 @@ describe('piggyback timing option', function() {
     client.send(message, 0, message.length, port, '127.0.0.1')
   }
 
+  function nonConfirmRequest() {
+    return request({
+      port: port
+      , confirmable: true
+    }).end()
+  }
 
   it('use custom piggyBackTimeout time', function(done) {
     //GIVEN
@@ -989,12 +995,11 @@ describe('piggyback timing option', function() {
     })
 
     //WHEN
-    send(new Buffer(3))
+    send(new Buffer(3));
 
     //THEN
     setTimeout(function() {
       expect(messages).to.eql(1)
-      expect(server._options.piggybackReplyMs).to.eql(piggyBackTimeout)
       done()
     }, piggyBackTimeout + 10)
   })
@@ -1010,6 +1015,53 @@ describe('piggyback timing option', function() {
     server = coap.createServer({ piggybackReplyMs: 'foo' })
     expect(server._options.piggybackReplyMs).to.eql(50)
     done()
+  })
+
+  it('use default sendAcksForNonConfirmablePackets', function(done) {
+    server = coap.createServer()
+    expect(server._options.sendAcksForNonConfirmablePackets).to.eql(true)
+    done()
+  })
+
+  it('define sendAcksForNonConfirmablePackets: true', function(done) {
+    server = coap.createServer({ sendAcksForNonConfirmablePackets: true })
+    expect(server._options.sendAcksForNonConfirmablePackets).to.eql(true)
+    done()
+  })
+
+  it('define sendAcksForNonConfirmablePackets: false', function(done) {
+    server = coap.createServer({ sendAcksForNonConfirmablePackets: false })
+    expect(server._options.sendAcksForNonConfirmablePackets).to.eql(false)
+    done()
+  })
+
+  it('define invalid sendAcksForNonConfirmablePackets setting', function(done) {
+    server = coap.createServer({ sendAcksForNonConfirmablePackets: 'moo' })
+    expect(server._options.sendAcksForNonConfirmablePackets).to.eql(true)
+    done()
+  })
+
+  xit('should not send ACK for non confirmable message', function(done) {
+    //GIVEN
+    var piggyBackTimeout = 10
+    var messages = 0;
+    server = coap.createServer({ sendAcksForNonConfirmablePackets: false })
+    server.listen(port)
+    server.on('request', function(req, res) {
+      res.end('42')
+    })
+    client.on('message', function(msg) {
+      messages++
+    })
+
+    //WHEN
+    nonConfirmRequest();
+
+    //THEN
+    setTimeout(function() {
+      expect(messages).to.eql(1)
+      done()
+    }, 20)
   })
 
 })
